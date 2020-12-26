@@ -5,6 +5,8 @@ import torch.jit
 import norse
 from norse.torch.functional.threshold import threshold
 
+from norse.torch.functional.superspike import super_fn
+
 
 class LIFParameters(NamedTuple):
     """Parametrization of a LIF neuron
@@ -167,7 +169,11 @@ def lif_step(
         p (LIFParameters): parameters of a leaky integrate and fire neuron
         dt (float): Integration timestep to use
     """
-    if p.method == "super" and getattr(norse, "IS_OPS_LOADED"):
+    if (
+        p.method == "super"
+        and getattr(norse, "IS_OPS_LOADED")
+        and not input_tensor.is_sparse  # TODO: Implement sparse C++ ops
+    ):
         # Order: [v_leak, v_th, v_reset, tau_mem_inv, tau_syn_inv, alpha]
         cpp_params = (
             p.v_leak,
@@ -260,6 +266,35 @@ def lif_feed_forward_step(
         p (LIFParameters): parameters of a leaky integrate and fire neuron
         dt (float): Integration timestep to use
     """
+    # Because input tensors are not directly used in the first pass (no
+    # broadcasting takes place) we need to set the state values to the
+    # same shape as the input.
+    if state is None:
+        state = LIFFeedForwardState(
+            v=torch.full_like(input_tensor, jit_params.v_reset),
+            i=torch.zeros_like(input_tensor),
+        )
+
+    if input_tensor.is_sparse:
+        assert p.method == "super", "Only superspike is supported for sparse tensors"
+        # compute voltage updates
+        dv = dt * p.tau_mem_inv * ((p.v_leak - state.v) + state.i)
+        v_decayed = state.v + dv
+
+        # compute current updates
+        di = -dt * p.tau_syn_inv * state.i
+        i_decayed = state.i + di
+
+        # compute new spikes
+        z_new = super_fn(v_decayed - p.v_th, p.alpha)
+        # compute reset
+        ones = torch.full(z_new.shape, 1).to_sparse()
+        v_new = (ones - z_new) * v_decayed + z_new * p.v_reset
+        # compute current jumps
+        i_new = i_decayed + input_tensor
+
+        return z_new, LIFFeedForwardState(v=v_new, i=i_new)
+
     jit_params = LIFParametersJIT(
         tau_syn_inv=p.tau_syn_inv,
         tau_mem_inv=p.tau_mem_inv,
@@ -269,14 +304,6 @@ def lif_feed_forward_step(
         method=p.method,
         alpha=torch.as_tensor(p.alpha),
     )
-    # Because input tensors are not directly used in the first pass (no
-    # broadcasting takes place) we need to set the state values to the
-    # same shape as the input.
-    if state is None:
-        state = LIFFeedForwardState(
-            v=torch.full_like(input_tensor, jit_params.v_reset),
-            i=torch.zeros_like(input_tensor),
-        )
     return _lif_feed_forward_step_jit(input_tensor, state=state, p=jit_params, dt=dt)
 
 

@@ -86,6 +86,7 @@ auto lif_integral(torch::Tensor input_tensor,
 auto lif_super_integral = lif_integral<superfun>;
 
 TORCH_LIBRARY(norse_op, m) {
+  m.def("heaviside", heaviside);
   m.def("superfun", superfun);
   m.def("lif_super_step", lif_super_step);
   m.def("lif_super_integral", lif_super_integral);
