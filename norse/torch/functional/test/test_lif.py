@@ -63,7 +63,6 @@ def test_lif_cpp_and_jit_step():
         assert torch.equal(s.z, cpp_states[i].z)
         assert torch.equal(s.i, cpp_states[i].i)
 
-
 def test_lif_cpp_back(cpp_fixture):
     x = torch.ones(2)
     s = LIFState(z=torch.zeros(1), v=torch.zeros(1), i=torch.zeros(1))
@@ -85,6 +84,38 @@ def test_lif_jit_back(jit_fixture):
     z.sum().backward()
 
 
+def test_lif_sparse_jit(jit_fixture):
+    x = heaviside(torch.randn(2, 3)).to_sparse()
+    s = LIFFeedForwardState(v=torch.zeros(2, 3).to_sparse(), i=torch.zeros(2, 3).to_sparse())
+    #input_weights = torch.ones(2, 3).to_sparse() * 10
+    p = LIFParameters(
+        tau_syn_inv=torch.full(x.shape, 1.0 / 5e-3).to_sparse(),
+        tau_mem_inv=torch.full(x.shape, 1.0 / 1e-2).to_sparse(),
+        v_leak=torch.zeros(x.shape).to_sparse(),
+        v_th=torch.ones(x.shape).to_sparse(),
+        v_reset=torch.zeros(x.shape).to_sparse(),
+        method="super",
+        alpha=torch.full(x.shape, 100).to_sparse(),
+    )
+    x, s = lif_feed_forward_step(x, s, p)
+    assert x.is_sparse and s.v.is_sparse and s.i.is_sparse
+
+def test_lif_sparse_cpp(cpp_fixture):
+    x = heaviside(torch.randn(2, 3)).to_sparse()
+    s = LIFFeedForwardState(v=torch.zeros(2, 3).to_sparse(), i=torch.zeros(2, 3).to_sparse())
+    #input_weights = torch.ones(2, 3).to_sparse() * 10
+    p = LIFParameters(
+        tau_syn_inv=torch.full(x.shape, 1.0 / 5e-3).to_sparse(),
+        tau_mem_inv=torch.full(x.shape, 1.0 / 1e-2).to_sparse(),
+        v_leak=torch.zeros(x.shape).to_sparse(),
+        v_th=torch.ones(x.shape).to_sparse(),
+        v_reset=torch.zeros(x.shape).to_sparse(),
+        method="super",
+        alpha=torch.full(x.shape, 100).to_sparse(),
+    )
+    x, s = lif_feed_forward_step(x, s, p)
+    assert x.is_sparse and s.v.is_sparse and s.i.is_sparse
+    
 def test_lif_heavi():
     x = torch.ones(2, 1)
     s = LIFState(z=torch.ones(2, 1), v=torch.zeros(2, 1), i=torch.zeros(2, 1))

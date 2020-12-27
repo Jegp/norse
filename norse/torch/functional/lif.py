@@ -127,6 +127,34 @@ def _lif_step_jit(
     return z_new, LIFState(z_new, v_new, i_new)
 
 
+def _lif_step_sparse(
+    input_tensor: torch.Tensor,
+    state: LIFState,
+    input_weights: torch.Tensor,
+    recurrent_weights: torch.Tensor,
+    p: LIFParametersJIT,
+    dt: float = 0.001,
+) -> Tuple[torch.Tensor, LIFState]:  # pragma: no cover
+    # compute voltage updates
+    dv = dt * p.tau_mem_inv * ((p.v_leak - state.v) + state.i)
+    v_decayed = state.v + dv
+
+    # compute current updates
+    di = -dt * p.tau_syn_inv * state.i
+    i_decayed = state.i + di
+
+    # compute new spikes
+    z_new = threshold(v_decayed - p.v_th, p.method, p.alpha)
+    # compute reset
+    v_new = (1 - z_new) * v_decayed + z_new * p.v_reset
+    # compute current jumps
+    # Note: for sparse inputs and weights, we can simply
+    #       "filter" out the weights without incoming spikes
+    i_new = i_decayed + input_tensor * input_weights + state.z * recurrent_weights
+
+    return z_new, LIFState(z_new, v_new, i_new)
+
+
 def lif_step(
     input_tensor: torch.Tensor,
     state: LIFState,
