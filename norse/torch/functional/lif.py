@@ -3,6 +3,7 @@ from typing import NamedTuple, Optional, Tuple
 import torch
 import torch.jit
 import norse
+from norse.torch.functional.sparse import spspmm
 from norse.torch.functional.threshold import threshold
 
 from norse.torch.functional.superspike import super_fn
@@ -143,14 +144,19 @@ def _lif_step_sparse(
     di = -dt * p.tau_syn_inv * state.i
     i_decayed = state.i + di
 
-    # compute new spikes
-    z_new = threshold(v_decayed - p.v_th, p.method, p.alpha)
+    # compute new spikes using SuperSpike
+    z_new = super_fn(v_decayed - p.v_th, p.alpha).coalesce()
     # compute reset
-    v_new = (1 - z_new) * v_decayed + z_new * p.v_reset
+    ones = torch.sparse_coo_tensor(z_new.indices(), torch.ones_like(z_new.values()), z_new.shape, dtype=torch.uint8, device=z_new.device)
+    v_new = (ones - z_new) * v_decayed + z_new * p.v_reset
     # compute current jumps
     # Note: for sparse inputs and weights, we can simply
     #       "filter" out the weights without incoming spikes
-    i_new = i_decayed + input_tensor * input_weights + state.z * recurrent_weights
+    i_new = (
+        i_decayed
+        + spspmm.apply(input_tensor, input_weights.t())
+        + spspmm.apply(state.z, recurrent_weights.t()
+    )
 
     return z_new, LIFState(z_new, v_new, i_new)
 
@@ -191,17 +197,20 @@ def lif_step(
 
     Parameters:
         input_tensor (torch.Tensor): the input spikes at the current time step
-        s (LIFState): current state of the LIF neuron
+        state (LIFState): current state of the LIF neuron
         input_weights (torch.Tensor): synaptic weights for incoming spikes
         recurrent_weights (torch.Tensor): synaptic weights for recurrent spikes
         p (LIFParameters): parameters of a leaky integrate and fire neuron
         dt (float): Integration timestep to use
     """
-    if (
-        p.method == "super"
-        and getattr(norse, "IS_OPS_LOADED")
-        and not input_tensor.is_sparse  # TODO: Implement sparse C++ ops
-    ):
+    if input_tensor.is_sparse:  # TODO: Implement sparse C++ ops)
+        assert (
+            p.method == "super"
+        ), "Sparse operations currently only support superspike"
+        return _lif_step_sparse(
+            input_tensor, state, input_weights, recurrent_weights, p, dt
+        )
+    elif p.method == "super" and getattr(norse, "IS_OPS_LOADED"):
         # Order: [v_leak, v_th, v_reset, tau_mem_inv, tau_syn_inv, alpha]
         cpp_params = (
             p.v_leak,
