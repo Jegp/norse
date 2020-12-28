@@ -7,6 +7,11 @@ class spspmm(torch.autograd.Function):
     def forward(ctx, i, w):
         i = i.coalesce()
         w = w.coalesce()
+        # Return immediately if one of the tensors is zero
+        # I. e. if the spike input are at most zero or weights is an empty matrix
+        if len(i.values()) == 0 or i.values().max() <= 0 or len(w.values()) == 0:
+            return torch.sparse_coo_tensor(size=(i.shape[0], w.shape[1]))
+
         res_i, res_v = torch_sparse.spspmm(
             i.indices(), i.values(), w.indices(), w.values(), *i.shape, w.shape[1]
         )

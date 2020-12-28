@@ -155,7 +155,7 @@ def _lif_step_sparse(
     i_new = (
         i_decayed
         + spspmm.apply(input_tensor, input_weights.t())
-        + spspmm.apply(state.z, recurrent_weights.t()
+        + spspmm.apply(state.z, recurrent_weights.t())
     )
 
     return z_new, LIFState(z_new, v_new, i_new)

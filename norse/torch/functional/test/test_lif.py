@@ -94,7 +94,7 @@ def test_lif_sparse(jit_fixture):
         i=torch.zeros(2, 3).to_sparse(),
     )
     input_weights = torch.ones(3, 2).to_sparse()
-    recurrent_weights = torch.ones(2, 3).to_sparse()
+    recurrent_weights = torch.ones(3, 2).to_sparse()
     p = LIFParameters(
         tau_syn_inv=torch.full(x.shape, 1.0 / 5e-3).to_sparse(),
         tau_mem_inv=torch.full(x.shape, 1.0 / 1e-2).to_sparse(),
