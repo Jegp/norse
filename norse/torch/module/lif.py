@@ -46,6 +46,8 @@ class LIFCell(torch.nn.Module):
         hidden_size (int): Size of the hidden state. Also known as the number of input features.
         p (LIFParameters): Parameters of the LIF neuron model.
         dt (float): Time step to use.
+        sparsify (bool): Whether to encode the weights as sparse (True) or dense (False) tensors.
+                         Defaults to False.
 
     Examples:
 
@@ -61,6 +63,7 @@ class LIFCell(torch.nn.Module):
         hidden_size: int,
         p: LIFParameters = LIFParameters(),
         dt: float = 0.001,
+        sparsify: bool = False
     ):
         super(LIFCell, self).__init__()
         self.input_weights = torch.nn.Parameter(
@@ -69,6 +72,9 @@ class LIFCell(torch.nn.Module):
         self.recurrent_weights = torch.nn.Parameter(
             torch.randn(hidden_size, hidden_size) * np.sqrt(2 / hidden_size)
         )
+        if sparsify:
+            self.input_weights = torch.nn.Parameter(self.input_weights.to_sparse())
+            self.recurrent_weights = torch.nn.Parameter(self.recurrent_weights.to_sparse())
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.p = p

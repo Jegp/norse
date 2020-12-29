@@ -1,4 +1,6 @@
 import torch
+from norse.torch.functional.heaviside import heaviside
+from norse.torch.functional.lif import LIFParameters, LIFState
 
 from norse.torch.module.lif import (
     LIFCell,
@@ -30,6 +32,30 @@ def test_lif_cell():
         assert x.shape == (5, 4)
     assert out.shape == (5, 4)
 
+def test_lif_cell_sparse():
+    x = heaviside(torch.randn(5, 2)).to_sparse()
+    p = LIFParameters(
+        tau_syn_inv=torch.full((5, 4), 1.0 / 5e-3).to_sparse(),
+        tau_mem_inv=torch.full((5, 4), 1.0 / 1e-2).to_sparse(),
+        v_leak=torch.zeros((5, 4)).to_sparse(),
+        v_th=torch.ones((5, 4)).to_sparse(),
+        v_reset=torch.zeros((5, 4)).to_sparse(),
+        method="super",
+        alpha=torch.full((5, 4), 100).to_sparse(),
+    )
+    s = LIFState(
+        z=torch.zeros(5, 4).to_sparse(),
+        v=torch.zeros(5, 4).to_sparse(),
+        i=torch.zeros(5, 4).to_sparse(),
+    )
+    cell = LIFCell(2, 4, p, sparsify=True)
+    out, s = cell(x, s)
+
+    for x in s:
+        assert x.shape == (5, 4)
+        assert x.is_sparse
+    assert out.shape == (5, 4)
+    assert out.is_sparse
 
 def test_lif_layer():
     layer = LIFLayer(2, 4)
@@ -70,6 +96,30 @@ def test_lif_feedforward_cell():
     for x in s:
         assert x.shape == (5, 4)
 
+def test_lif_feedforward_sparse():
+    x = heaviside(torch.randn(5, 4)).to_sparse()
+    p = LIFParameters(
+        tau_syn_inv=torch.full(x.shape, 1.0 / 5e-3).to_sparse(),
+        tau_mem_inv=torch.full(x.shape, 1.0 / 1e-2).to_sparse(),
+        v_leak=torch.zeros(x.shape).to_sparse(),
+        v_th=torch.ones(x.shape).to_sparse(),
+        v_reset=torch.zeros(x.shape).to_sparse(),
+        method="super",
+        alpha=torch.full(x.shape, 100).to_sparse(),
+    )
+    layer = LIFFeedForwardCell(p)
+    s = LIFState(
+        z=torch.zeros(5, 4).to_sparse(),
+        v=torch.zeros(5, 4).to_sparse(),
+        i=torch.zeros(5, 4).to_sparse(),
+    )
+    out, s = layer(x, s)
+
+    assert out.shape == (5, 4)
+    assert out.is_sparse
+    for x in s:
+        assert x.shape == (5, 4)
+        assert x.is_sparse
 
 def test_lif_feedforward_cell_backward():
     # Tests that gradient variables can be used in subsequent applications

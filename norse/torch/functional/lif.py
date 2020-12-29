@@ -147,7 +147,13 @@ def _lif_step_sparse(
     # compute new spikes using SuperSpike
     z_new = super_fn(v_decayed - p.v_th, p.alpha).coalesce()
     # compute reset
-    ones = torch.sparse_coo_tensor(z_new.indices(), torch.ones_like(z_new.values()), z_new.shape, dtype=torch.uint8, device=z_new.device)
+    ones = torch.sparse_coo_tensor(
+        z_new.indices(),
+        torch.ones_like(z_new.values()),
+        z_new.shape,
+        dtype=torch.uint8,
+        device=z_new.device,
+    )
     v_new = (ones - z_new) * v_decayed + z_new * p.v_reset
     # compute current jumps
     # Note: for sparse inputs and weights, we can simply
