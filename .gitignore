@@ -36,3 +36,5 @@ Pipfile
 Pipfile.lock
 .pytype/
 htmlcov/
+*.h5
+*.h5.gz
