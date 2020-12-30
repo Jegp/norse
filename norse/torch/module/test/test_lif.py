@@ -32,6 +32,7 @@ def test_lif_cell():
         assert x.shape == (5, 4)
     assert out.shape == (5, 4)
 
+
 def test_lif_cell_sparse():
     x = heaviside(torch.randn(5, 2)).to_sparse()
     p = LIFParameters(
@@ -56,6 +57,7 @@ def test_lif_cell_sparse():
         assert x.is_sparse
     assert out.shape == (5, 4)
     assert out.is_sparse
+
 
 def test_lif_layer():
     layer = LIFLayer(2, 4)
@@ -96,6 +98,7 @@ def test_lif_feedforward_cell():
     for x in s:
         assert x.shape == (5, 4)
 
+
 def test_lif_feedforward_sparse():
     x = heaviside(torch.randn(5, 4)).to_sparse()
     p = LIFParameters(
@@ -120,6 +123,7 @@ def test_lif_feedforward_sparse():
     for x in s:
         assert x.shape == (5, 4)
         assert x.is_sparse
+
 
 def test_lif_feedforward_cell_backward():
     # Tests that gradient variables can be used in subsequent applications

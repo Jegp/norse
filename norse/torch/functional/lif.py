@@ -314,7 +314,7 @@ def lif_feed_forward_step(
     # same shape as the input.
     if state is None:
         state = LIFFeedForwardState(
-            v=torch.full_like(input_tensor, jit_params.v_reset),
+            v=torch.full_like(input_tensor, p.v_reset),
             i=torch.zeros_like(input_tensor),
         )
 

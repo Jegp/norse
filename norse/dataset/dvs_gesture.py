@@ -189,11 +189,9 @@ class DVSGesture(torch.utils.data.Dataset):
 
         if download:
             self.download()
-
-        if not self._check_integrity():
+        elif not self._check_integrity():
             raise RuntimeError(
-                "Dataset not found or corrupted."
-                + " You can use download=True to download it"
+                "Dataset not found or corrupted. Use download=True to re-download."
             )
 
         logging.info("DVS Gesture dataset downloaded and verified")
