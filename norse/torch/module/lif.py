@@ -66,17 +66,18 @@ class LIFCell(torch.nn.Module):
         sparsify: bool = False,
     ):
         super(LIFCell, self).__init__()
-        self.input_weights = torch.nn.Parameter(
-            torch.randn(hidden_size, input_size) * np.sqrt(2 / hidden_size)
-        )
-        self.recurrent_weights = torch.nn.Parameter(
-            torch.randn(hidden_size, hidden_size) * np.sqrt(2 / hidden_size)
-        )
+        input_weights = torch.randn(
+            hidden_size, input_size, dtype=torch.float32
+        ) * np.sqrt(2 / hidden_size)
+        recurrent_weights = torch.randn(
+            hidden_size, hidden_size, dtype=torch.float32
+        ) * np.sqrt(2 / hidden_size)
         if sparsify:
-            self.input_weights = torch.nn.Parameter(self.input_weights.to_sparse())
-            self.recurrent_weights = torch.nn.Parameter(
-                self.recurrent_weights.to_sparse()
-            )
+            self.input_weights = torch.nn.Parameter(input_weights.to_sparse())
+            self.recurrent_weights = torch.nn.Parameter(recurrent_weights.to_sparse())
+        else:
+            self.input_weights = torch.nn.Parameter(input_weights)
+            self.recurrent_weights = torch.nn.Parameter(recurrent_weights)
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.p = p
